@@ -1,82 +1,79 @@
-#!/usr/bin/python 
-import os, sys, string, random
+#!/usr/bin/python
+import os, sys, random
 
 # Markov chain word generator.
 
 # Map each context to {word->frequency}.
-# 'contexts' is a frequency table, populated here.
-# 'words' is an ordered list of words.
-# 'n' is the number of words in each context window.
 def build(contexts, words, n):
-	context = words[:n]
-	for word in words[n:]:
-		key = tuple(context)
-		wordfreq = contexts.get(key, {})
-		wordfreq[word] = wordfreq.get(word, 0) + 1
-		contexts[key] = wordfreq
-		# print(key, word, wordfreq[word])
-		context = context[1:] + [word]
-		
-# Generate semi-random output.
-# Print a random starting point and continue from there.
-# 'starters' is a list of possible starter contexts.
-def generate(f, starters, contexts):
-	context = random.choice(starters)
-	f.write(" ".join(context))
-	while True:
-		key = tuple(context)
-		wordfreq = contexts.get(key, {})
-		if not wordfreq:
-				break
-		word = choose(wordfreq)
-		f.write(" " + word)
-		context = context[1:] + [word]
-	f.write("\n")
+    context = words[:n]
+    for word in words[n:]:
+        key = tuple(context)
+        wordfreq = contexts.get(key, {})
+        wordfreq[word] = wordfreq.get(word, 0) + 1
+        contexts[key] = wordfreq
+        context = context[1:] + [word]
 
-# Randomly choose one word from a {word->frequency}
-# dictionary, the choice being weighted by frequency.
+# Generate semi-random output with formatting.
+def generate(f, starters, contexts, n, words_per_paragraph=80):
+    context = random.choice(starters)
+    output_words = list(context)
+
+    while True:
+        key = tuple(context)
+        wordfreq = contexts.get(key, {})
+        if not wordfreq:
+            break
+        word = choose(wordfreq)
+        output_words.append(word)
+        context = context[1:] + [word]
+
+    # Convert to uppercase
+    output_words = [w.upper() for w in output_words]
+
+    # Write paragraphs
+    for i in range(0, len(output_words), words_per_paragraph):
+        paragraph = output_words[i:i + words_per_paragraph]
+        f.write(" ".join(paragraph) + "\n\n")
+
+# Weighted random choice
 def choose(wordfreq):
-	# Calculate the total instances.
-	total = 0
-	for w,count in wordfreq.items():
-			total += count
-	# Choose a random instance.
-	chosen = random.randint(1,total)
-	# Walk through to find it.
-	sofar = 0
-	for word,count in wordfreq.items():
-		sofar += count
-		if chosen <= sofar:
-			return word
-	assert(0)
+    total = sum(wordfreq.values())
+    chosen = random.randint(1, total)
 
-# Generate a semi-random sequence of words that
-# mimic the probabilities of the input text.
+    sofar = 0
+    for word, count in wordfreq.items():
+        sofar += count
+        if chosen <= sofar:
+            return word
+
+    assert 0
+
 def main():
-	# Initialise.
-	data_dir = "data/"
-	n = 2
-	for arg in sys.argv[1:]:
-		if arg.isnumeric(): n = int(arg)
-		else: data_dir = arg
+    data_dir = "data/"
+    n = 2
 
-	# Build the frequency table by reading the input text(s).
-	contexts = {}
-	starters = []
+    for arg in sys.argv[1:]:
+        if arg.isnumeric():
+            n = int(arg)
+        else:
+            data_dir = arg
 
-	for filename in sorted(os.listdir(data_dir)):
-		print("Reading " + data_dir + filename)
-		words = open(data_dir + filename).read().split()
-		starters.append(words[:2])
-		build(contexts, words, 2)
+    contexts = {}
+    starters = []
 
-	# Print words at random, starting at some initial context.
-	out_file = "output.txt"
-	print("Writing " + out_file)
-	f = open(out_file, "w")
-	generate(f, starters, contexts)
-	f.close()
+    for filename in sorted(os.listdir(data_dir)):
+        print("Reading " + data_dir + filename)
+        with open(os.path.join(data_dir, filename), encoding="utf-8") as f:
+            words = f.read().split()
+            if len(words) >= n:
+                starters.append(words[:n])
+                build(contexts, words, n)
+
+    out_file = "output.txt"
+    print("Writing " + out_file)
+
+    with open(out_file, "w") as f:
+        generate(f, starters, contexts, n)
 
 if __name__ == '__main__':
-	main()
-
+    main()
