@@ -27,8 +27,8 @@ def generate(f, starters, contexts, n, words_per_paragraph=80):
         output_words.append(word)
         context = context[1:] + [word]
 
-    # Convert to uppercase
-    output_words = [w.upper() for w in output_words]
+    # Convert to lowercase
+    output_words = [w.lower() for w in output_words]
 
     # Write paragraphs
     for i in range(0, len(output_words), words_per_paragraph):
